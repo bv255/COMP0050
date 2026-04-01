@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split, StratifiedKFold, GridSearchCV
 from sklearn.preprocessing import StandardScaler
+from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
@@ -13,6 +14,10 @@ from sklearn.metrics import (
 )
 import matplotlib.pyplot as plt
 import os
+
+
+# Continuous columns to scale
+CONTINUOUS_COLS = ['tenure', 'MonthlyCharges', 'TotalCharges']
 
 
 def load_data():
@@ -30,6 +35,19 @@ def load_data():
     X = cleaned_df.drop(columns=['Churn'])
     y = cleaned_df['Churn']
     return X, y
+
+
+def get_preprocessor(feature_names):
+    """Scale only continuous columns, pass through the rest."""
+    continuous_idx = [i for i, col in enumerate(feature_names) if col in CONTINUOUS_COLS]
+    
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('scale', StandardScaler(), continuous_idx)
+        ],
+        remainder='passthrough'
+    )
+    return preprocessor
 
 
 def evaluate_model(model, X_test, y_test, model_name):
@@ -106,18 +124,21 @@ if __name__ == "__main__":
     # Consistent CV
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=50)
     
-    # Define pipelines (scaling handled inside — no leakage)
+    # Get preprocessor that only scales continuous columns
+    preprocessor = get_preprocessor(X.columns.tolist())
+    
+    # Define pipelines
     pipelines = {
         'Logistic Regression': Pipeline([
-            ('scaler', StandardScaler()),
+            ('preprocessor', preprocessor),
             ('model', LogisticRegression(max_iter=1000, random_state=50))
         ]),
         'SVM': Pipeline([
-            ('scaler', StandardScaler()),
+            ('preprocessor', preprocessor),
             ('model', SVC(probability=True, random_state=50))
         ]),
         'Random Forest': Pipeline([
-            ('scaler', StandardScaler()),  # Not needed for RF, but keeps consistent
+            ('preprocessor', preprocessor),
             ('model', RandomForestClassifier(random_state=50))
         ])
     }
