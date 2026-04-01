@@ -3,17 +3,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 from sklearn.preprocessing import StandardScaler
 import numpy as np
+import pandas as pd
 
 
-def split_data(X, y, test_size=0.2, random_state=42):
-    return train_test_split(X, y, test_size=test_size, random_state=random_state)
-
-
-def scale_features(X_train, X_test):
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
-    return X_train_scaled, X_test_scaled, scaler
+def split_data(X, y, test_size=0.2, random_state=50):
+    return train_test_split(X, y, test_size=test_size, random_state=random_state, stratify=y)
 
 
 def train_svm(X_train, y_train, kernel='rbf', C=1.0, random_state=42):
@@ -53,19 +47,12 @@ def print_summary(stats, kernel, n_train, n_test):
     print(f"\nConfusion Matrix:\n{stats['confusion_matrix']}")
 
 
-def run_svm(data_fn, kernel='rbf', C=1.0, test_size=0.2, scale=True, random_state=42):
+def run_svm(X, y, kernel='rbf', C=1.0, test_size=0.2, scale=True, random_state=42):
     """
     Main pipeline: takes a data function, runs SVM, returns stats.
     """
-    # Get data
-    X, y = data_fn()
-    
     # Split
     X_train, X_test, y_train, y_test = split_data(X, y, test_size, random_state)
-    
-    # Scale
-    if scale:
-        X_train, X_test, _ = scale_features(X_train, X_test)
     
     # Train
     model = train_svm(X_train, y_train, kernel, C, random_state)
@@ -79,8 +66,12 @@ def run_svm(data_fn, kernel='rbf', C=1.0, test_size=0.2, scale=True, random_stat
     return stats, model
 
 def get_data():
-    pass
+    df = pd.read_csv('telco_churn_cleaned.csv')
+    X = df.drop(columns=['Churn'])
+    y = df['Churn']
+    return X, y
 
 
 if __name__ == "__main__":
-    stats, model = run_svm(get_data, kernel='rbf', C=1.0)
+    X, y = get_data()
+    stats, model = run_svm(X, y, kernel='rbf', C=1.0)
